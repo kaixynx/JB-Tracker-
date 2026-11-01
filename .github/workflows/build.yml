@@ -35,31 +35,45 @@ jobs:
         run: |
           mkdir project
           unzip -o JB_Tracker_Android_Project_v2.zip -d project
-          if [ -d "project/JB_Tracker_Android_Project_v2" ]; then
-            echo "PROJECT_SUBDIR=project/JB_Tracker_Android_Project_v2" >> $GITHUB_ENV
-            SUBDIR="project/JB_Tracker_Android_Project_v2"
+          
+          # Cari di mana letak folder 'app' sebenarnya di dalam hasil ekstrak zip
+          APP_DIR=$(find project -type d -name "app" | head -n 1)
+          
+          if [ -n "$APP_DIR" ]; then
+            # Mengambil direktori induk dari folder 'app' sebagai root project-nya
+            REAL_ROOT=$(dirname "$APP_DIR")
+            echo "PROJECT_SUBDIR=$REAL_ROOT" >> $GITHUB_ENV
+            echo "Menemukan root proyek di: $REAL_ROOT"
+            
+            # Kunci perbaikan: Modifikasi HANYA pada build.gradle milik modul app, bukan root project
+            cat << "EOF" >> "$APP_DIR/build.gradle"
+
+            tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+                kotlinOptions {
+                    jvmTarget = "1.8"
+                }
+            }
+
+            android {
+                compileOptions {
+                    sourceCompatibility JavaVersion.VERSION_1_8
+                    targetCompatibility JavaVersion.VERSION_1_8
+                }
+            }
+            EOF
+            echo "Konfigurasi target JVM 1.8 berhasil disuntikkan ke modul app."
           else
             echo "PROJECT_SUBDIR=project" >> $GITHUB_ENV
-            SUBDIR="project"
+            echo "Peringatan: Folder app tidak ditemukan, menggunakan fallback root biasa."
           fi
-          
-          # SKRIP AMPUH: Memaksa semua konfigurasi compileOptions dan kotlinOptions ke 1.8 di akhir file build.gradle
-          find $SUBDIR -name "build.gradle" -exec sh -c 'cat << "EOF" >> "$1"
-
-          tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
-              kotlinOptions {
-                  jvmTarget = "1.8"
-              }
-          }
-
-          android {
-              compileOptions {
-                  sourceCompatibility JavaVersion.VERSION_1_8
-                  targetCompatibility JavaVersion.VERSION_1_8
-              }
-          }
-          EOF' _ {} \;
 
       - name: Build APK
         run: gradle -p ${{ env.PROJECT_SUBDIR }} :app:assembleDebug
-        
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: JB-Tracker-APK
+          path: ${{ env.PROJECT_SUBDIR }}/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          
