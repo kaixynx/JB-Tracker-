@@ -16,18 +16,12 @@ jobs:
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
-          distribution: temurin
+          distribution: 'temurin'
           java-version: '17'
 
+      # Menggunakan aksi resmi GitHub yang jauh lebih stabil dan aman dari error 'tools'
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          accept-android-sdk-licenses: true
-          packages: 'platform-tools'
-
-      - name: Install Android SDK packages
-        run: |
-          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+        uses: actions/setup-android@v3
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -38,14 +32,20 @@ jobs:
         run: |
           mkdir project
           unzip -o JB_Tracker_Android_Project_v2.zip -d project
+          # Perintah di bawah ini untuk mendeteksi otomatis jika proyek Anda terbungkus folder lain
+          if [ -d "project/JB_Tracker_Android_Project_v2" ]; then
+            echo "PROJECT_SUBDIR=project/JB_Tracker_Android_Project_v2" >> $GITHUB_ENV
+          else
+            echo "PROJECT_SUBDIR=project" >> $GITHUB_ENV
+          fi
 
       - name: Build APK
-        run: gradle -p project :app:assembleDebug
+        run: gradle -p ${{ env.PROJECT_SUBDIR }} :app:assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: JB-Tracker-APK
-          path: project/app/build/outputs/apk/debug/app-debug.apk
+          path: ${{ env.PROJECT_SUBDIR }}/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           
