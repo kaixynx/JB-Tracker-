@@ -1,3 +1,38 @@
+name: Build JB Tracker APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # FIX 1: Menggunakan android-actions@v4 agar tidak crash akibat pembaruan server SDK Google
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Install Android SDK packages
+        run: |
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      # FIX 2 & 3: Mendeteksi struktur folder zip + Otomatis mengubah target build.gradle ke Java 17
       - name: Extract Android project
         run: |
           mkdir project
@@ -9,10 +44,19 @@
             echo "PROJECT_SUBDIR=project" >> $GITHUB_ENV
             SUBDIR="project"
           fi
-          # Trik memaksa Java 17 di build.gradle aplikasi
+          # Memaksa teks VERSION_1_8 dan "1.8" di build.gradle berubah menjadi Java 17 sebelum dicompile
           find $SUBDIR -name "build.gradle*" -exec sed -i 's/VERSION_1_8/VERSION_17/g' {} +
           find $SUBDIR -name "build.gradle*" -exec sed -i 's/"1.8"/"17"/g' {} +
 
+      # FIX 4: Menyesuaikan jalur direktori target proyek ke variabel dinamis ($GITHUB_ENV)
       - name: Build APK
         run: gradle -p ${{ env.PROJECT_SUBDIR }} :app:assembleDebug
-        
+
+      # FIX 5: Menyesuaikan jalur pembacaan file output APK agar tidak 'Artifact not found'
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: JB-Tracker-APK
+          path: ${{ env.PROJECT_SUBDIR }}/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          
