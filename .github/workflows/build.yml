@@ -37,22 +37,29 @@ jobs:
           unzip -o JB_Tracker_Android_Project_v2.zip -d project
           if [ -d "project/JB_Tracker_Android_Project_v2" ]; then
             echo "PROJECT_SUBDIR=project/JB_Tracker_Android_Project_v2" >> $GITHUB_ENV
+            SUBDIR="project/JB_Tracker_Android_Project_v2"
           else
             echo "PROJECT_SUBDIR=project" >> $GITHUB_ENV
+            SUBDIR="project"
           fi
-
-      # FIX: Memaksa compiler Java dan Kotlin menggunakan target kompatibilitas Java 17 secara bersamaan
-      - name: Build APK
-        run: |
-          gradle -p ${{ env.PROJECT_SUBDIR }} :app:assembleDebug \
-            -Dorg.gradle.java.home=$JAVA_HOME_17_X64 \
-            -Pandroid.nonTransitiveRClass=true \
-            -Pkotlin.jvm.target=17
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: JB-Tracker-APK
-          path: ${{ env.PROJECT_SUBDIR }}/app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
           
+          # SKRIP AMPUH: Memaksa semua konfigurasi compileOptions dan kotlinOptions ke 1.8 di akhir file build.gradle
+          find $SUBDIR -name "build.gradle" -exec sh -c 'cat << "EOF" >> "$1"
+
+          tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+              kotlinOptions {
+                  jvmTarget = "1.8"
+              }
+          }
+
+          android {
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_1_8
+                  targetCompatibility JavaVersion.VERSION_1_8
+              }
+          }
+          EOF' _ {} \;
+
+      - name: Build APK
+        run: gradle -p ${{ env.PROJECT_SUBDIR }} :app:assembleDebug
+        
