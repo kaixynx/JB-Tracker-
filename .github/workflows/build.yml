@@ -19,7 +19,6 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      # Menggunakan android-actions versi terbaru (v4) untuk menghindari error 'tools'
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
 
@@ -32,7 +31,6 @@ jobs:
         run: |
           mkdir project
           unzip -o JB_Tracker_Android_Project_v2.zip -d project
-          # Otomatis mendeteksi jika proyek terbungkus sub-folder di dalam zip
           if [ -d "project/JB_Tracker_Android_Project_v2" ]; then
             echo "PROJECT_SUBDIR=project/JB_Tracker_Android_Project_v2" >> $GITHUB_ENV
           else
@@ -40,7 +38,7 @@ jobs:
           fi
 
       - name: Build APK
-        run: gradle -p ${{ env.PROJECT_SUBDIR }} :app:assembleDebug
+        run: gradle -p ${{ env.PROJECT_SUBDIR }} :app:assembleDebug -Pandroid.experimental.jetbrains.kotlin.jvm.target=17
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
