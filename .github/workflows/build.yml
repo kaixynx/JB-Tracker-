@@ -19,9 +19,9 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      # Menggunakan aksi resmi GitHub yang jauh lebih stabil dan aman dari error 'tools'
+      # Menggunakan android-actions versi terbaru (v4) untuk menghindari error 'tools'
       - name: Set up Android SDK
-        uses: actions/setup-android@v3
+        uses: android-actions/setup-android@v4
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -32,7 +32,7 @@ jobs:
         run: |
           mkdir project
           unzip -o JB_Tracker_Android_Project_v2.zip -d project
-          # Perintah di bawah ini untuk mendeteksi otomatis jika proyek Anda terbungkus folder lain
+          # Otomatis mendeteksi jika proyek terbungkus sub-folder di dalam zip
           if [ -d "project/JB_Tracker_Android_Project_v2" ]; then
             echo "PROJECT_SUBDIR=project/JB_Tracker_Android_Project_v2" >> $GITHUB_ENV
           else
