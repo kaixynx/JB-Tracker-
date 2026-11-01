@@ -1,49 +1,18 @@
-name: Build JB Tracker APK
-
-on:
-  workflow_dispatch:
-  push:
-    branches: [ main ]
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v4
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.9'
-
       - name: Extract Android project
         run: |
           mkdir project
           unzip -o JB_Tracker_Android_Project_v2.zip -d project
           if [ -d "project/JB_Tracker_Android_Project_v2" ]; then
             echo "PROJECT_SUBDIR=project/JB_Tracker_Android_Project_v2" >> $GITHUB_ENV
+            SUBDIR="project/JB_Tracker_Android_Project_v2"
           else
             echo "PROJECT_SUBDIR=project" >> $GITHUB_ENV
+            SUBDIR="project"
           fi
+          # Trik memaksa Java 17 di build.gradle aplikasi
+          find $SUBDIR -name "build.gradle*" -exec sed -i 's/VERSION_1_8/VERSION_17/g' {} +
+          find $SUBDIR -name "build.gradle*" -exec sed -i 's/"1.8"/"17"/g' {} +
 
       - name: Build APK
-        run: gradle -p ${{ env.PROJECT_SUBDIR }} :app:assembleDebug -Pandroid.experimental.jetbrains.kotlin.jvm.target=17
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: JB-Tracker-APK
-          path: ${{ env.PROJECT_SUBDIR }}/app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
-          
+        run: gradle -p ${{ env.PROJECT_SUBDIR }} :app:assembleDebug
+        
