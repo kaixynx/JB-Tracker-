@@ -22,18 +22,9 @@ jobs:
           java-version: '17'
 
       - name: Install Android SDK
-        shell: bash
         run: |
-          echo "ANDROID_HOME=$ANDROID_HOME"
           SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)
-
-          if [ -z "$SDKMANAGER" ]; then
-            echo "sdkmanager tidak ditemukan"
-            exit 1
-          fi
-
           yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
-
           "$SDKMANAGER" --install \
             "platform-tools" \
             "platforms;android-35" \
@@ -44,7 +35,16 @@ jobs:
           mkdir -p project
           unzip -o JB_Tracker_Android_Project_v2.zip -d project
 
-      - name: Add missing AndroidX dependency
+      - name: Enable AndroidX
+        run: |
+          touch project/gradle.properties
+          if grep -q '^android.useAndroidX=' project/gradle.properties; then
+            sed -i 's/^android.useAndroidX=.*/android.useAndroidX=true/' project/gradle.properties
+          else
+            echo 'android.useAndroidX=true' >> project/gradle.properties
+          fi
+
+      - name: Add AndroidX dependency
         run: |
           cat >> project/app/build.gradle <<'EOF'
 
@@ -53,12 +53,12 @@ jobs:
           }
           EOF
 
-      - name: Set up Gradle 8.9
+      - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
 
-      - name: Build debug APK
+      - name: Build APK
         run: gradle -p project --no-daemon :app:assembleDebug
 
       - name: Upload APK
